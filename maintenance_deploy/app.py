@@ -135,7 +135,7 @@ with col3:
     tool_wear = st.number_input("Tool Wear [min]", min_value=0.0, max_value=300.0, value=50.0, step=1.0)
 
 # -- Data Preparation --
-# Mapping inputs to One-Hot encoded features
+# Convert inputs to match model features
 type_L = 1 if "Low" in machine_type_input else 0
 type_M = 1 if "Medium" in machine_type_input else 0
 
@@ -144,11 +144,11 @@ columns = ['Air temperature [K]', 'Process temperature [K]', 'Rotational speed [
 
 input_df = pd.DataFrame([[air_temp, proc_temp, rot_speed, torque, tool_wear, type_L, type_M]], columns=columns)
 
-# -- Diagnostic Results Section --
+# -- Diagnostic Results --
 st.divider()
 
 if st.button("Run System Diagnostic", use_container_width=True):
-    # Predict failure probability
+    # Getting the Probability of Failure (class index 1)
     risk_probability = model.predict_proba(input_df)[0][1] * 100
     
     st.subheader(f"📊 Analysis Results for {machine_id}")
@@ -168,11 +168,11 @@ if st.button("Run System Diagnostic", use_container_width=True):
 
     with res_col2:
         st.write("**Operational Context:**")
-        # Visualizing sensor data with gradients
+        # Displaying the input data with gradient colors
         st.dataframe(input_df.style.background_gradient(cmap='Blues', axis=1))
         st.info("The Risk Score is calculated based on historical failure patterns and real-time sensor correlation.")
 
-# -- Footer & Credits --
+# -- Footer & About --
 st.divider()
 with st.expander("ℹ️ Technical System Details"):
     st.markdown("""
