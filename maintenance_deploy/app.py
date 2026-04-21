@@ -4,14 +4,14 @@ import numpy as np
 import joblib
 import os
 
-# --- PAGE CONFIGURATION & CUSTOM STYLING ---
+# -- Page Configuration & Custom Styling --
 st.set_page_config(
     page_title="Industrial Predictive Maintenance",
-    page_icon="🛠️",
+    page_icon="⚙️",
     layout="wide"
 )
 
-# CSS for Sidebar
+# -- Custom CSS for UI Improvements --
 st.markdown("""
     <style>
     /* HIDE THE ACTUAL ARROW ICONS COMPLETELY to prevent ghosting */
@@ -40,6 +40,25 @@ st.markdown("""
         margin-left: 10px;
     }
 
+    /* THE RUN SYSTEM DIAGNOSTIC BUTTON - Styled with #E1F6FF and black text */
+    div.stButton > button {
+        background-color: #3ca9ed !important;
+        color: #000000 !important;
+        border: 1px solid #b3e5fc !important;
+        font-weight: bold !important;
+        height: 3.5em !important;
+        width: 100% !important;
+        border-radius: 8px !important;
+        transition: 0.3s;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    div.stButton > button:hover {
+        background-color: #008cba !important;
+        border: 1px solid #2980b9 !important;
+    }
+
     /* FOOTER */
     .footer {
         position: fixed;
@@ -47,7 +66,7 @@ st.markdown("""
         bottom: 0;
         width: 100%;
         background-color: rgba(255, 255, 255, 0.9);
-        color: #888;
+        color: #000;
         text-align: center;
         padding: 5px;
         font-size: 12px;
@@ -64,7 +83,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- SAFE MODEL LOADING ---
+# -- Safe Model Loading --
 @st.cache_resource
 def load_model():
     base_path = os.path.dirname(__file__)
@@ -77,7 +96,7 @@ def load_model():
 
 model = load_model()
 
-# --- SIDEBAR: MACHINE SETTINGS ---
+# -- Sidebar: Machine Settings --
 st.sidebar.header("⚙️ Machine Settings")
 machine_id = st.sidebar.text_input("Machine ID", value="MAC-1024")
 
@@ -92,7 +111,7 @@ machine_type_input = st.sidebar.selectbox(
     label_visibility="collapsed"
 )
 
-# --- MAIN CONTENT & SENSOR INPUTS ---
+# -- Main Content & Sensor Inputs --
 st.title("🔧 Industrial Predictive Maintenance Dashboard")
 st.caption(f"Currently Monitoring: **{machine_id}**")
 
@@ -115,7 +134,7 @@ with col2:
 with col3:
     tool_wear = st.number_input("Tool Wear [min]", min_value=0.0, max_value=300.0, value=50.0, step=1.0)
 
-# --- DATA PREPARATION ---
+# -- Data Preparation --
 # Convert inputs to match model features
 type_L = 1 if "Low" in machine_type_input else 0
 type_M = 1 if "Medium" in machine_type_input else 0
@@ -125,10 +144,10 @@ columns = ['Air temperature [K]', 'Process temperature [K]', 'Rotational speed [
 
 input_df = pd.DataFrame([[air_temp, proc_temp, rot_speed, torque, tool_wear, type_L, type_M]], columns=columns)
 
-# --- DIAGNOSTIC RESULTS ---
+# -- Diagnostic Results --
 st.divider()
 
-if st.button("Run System Diagnostic", type="primary", use_container_width=True):
+if st.button("Run System Diagnostic", use_container_width=True):
     # Getting the Probability of Failure (class index 1)
     risk_probability = model.predict_proba(input_df)[0][1] * 100
     
@@ -153,15 +172,13 @@ if st.button("Run System Diagnostic", type="primary", use_container_width=True):
         st.dataframe(input_df.style.background_gradient(cmap='Blues', axis=1))
         st.info("The Risk Score is calculated based on historical failure patterns and real-time sensor correlation.")
 
-# --- FOOTER & ABOUT ---
+# -- Footer & About --
 st.divider()
 with st.expander("ℹ️ Technical System Details"):
     st.markdown("""
     **Developer:** Samith S P  
     **Framework:** Streamlit + Scikit-Learn  
-    **Model:** Calibrated Gradient Boosting with SMOTE  
-    
-    *During the development phase, AI tools were utilized for code optimization, UI styling (CSS), and troubleshooting model calibration errors.*
+    **Model:** Calibrated Gradient Boosting with SMOTE (Synthetic Minority Over-sampling Technique)  
     """)
 
 st.markdown("""
