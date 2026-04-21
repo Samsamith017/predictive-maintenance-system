@@ -42,7 +42,7 @@ st.markdown("""
 
     /* THE RUN SYSTEM DIAGNOSTIC BUTTON - Styled with #E1F6FF and black text */
     div.stButton > button {
-        background-color: #3ca9ed !important;
+        background-color: #E1F6FF !important;
         color: #000000 !important;
         border: 1px solid #b3e5fc !important;
         font-weight: bold !important;
@@ -55,7 +55,7 @@ st.markdown("""
     }
     
     div.stButton > button:hover {
-        background-color: #008cba !important;
+        background-color: #c5edff !important;
         border: 1px solid #2980b9 !important;
     }
 
@@ -135,7 +135,7 @@ with col3:
     tool_wear = st.number_input("Tool Wear [min]", min_value=0.0, max_value=300.0, value=50.0, step=1.0)
 
 # -- Data Preparation --
-# Convert inputs to match model features
+# Mapping inputs to One-Hot encoded features
 type_L = 1 if "Low" in machine_type_input else 0
 type_M = 1 if "Medium" in machine_type_input else 0
 
@@ -144,11 +144,11 @@ columns = ['Air temperature [K]', 'Process temperature [K]', 'Rotational speed [
 
 input_df = pd.DataFrame([[air_temp, proc_temp, rot_speed, torque, tool_wear, type_L, type_M]], columns=columns)
 
-# -- Diagnostic Results --
+# -- Diagnostic Results Section --
 st.divider()
 
 if st.button("Run System Diagnostic", use_container_width=True):
-    # Getting the Probability of Failure (class index 1)
+    # Predict failure probability
     risk_probability = model.predict_proba(input_df)[0][1] * 100
     
     st.subheader(f"📊 Analysis Results for {machine_id}")
@@ -168,11 +168,11 @@ if st.button("Run System Diagnostic", use_container_width=True):
 
     with res_col2:
         st.write("**Operational Context:**")
-        # Displaying the input data
+        # Visualizing sensor data with gradients
         st.dataframe(input_df.style.background_gradient(cmap='Blues', axis=1))
         st.info("The Risk Score is calculated based on historical failure patterns and real-time sensor correlation.")
 
-# -- Footer & About --
+# -- Footer & Credits --
 st.divider()
 with st.expander("ℹ️ Technical System Details"):
     st.markdown("""
