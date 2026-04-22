@@ -20,7 +20,6 @@ st.markdown("""
         opacity: 0 !important;
     }
 
-    /* CUSTOM SIDEBAR LABELS */
     [data-testid="stSidebarCollapseIcon"]::after {
         content: "Collapse";
         font-size: 14px;
@@ -37,7 +36,6 @@ st.markdown("""
         margin-left: 10px;
     }
 
-    /* THE RUN SYSTEM DIAGNOSTIC BUTTON */
     div.stButton > button {
         background-color: #E1F6FF !important;
         color: #000000 !important;
@@ -56,7 +54,6 @@ st.markdown("""
         border: 1px solid #2980b9 !important;
     }
 
-    /* FOOTER */
     .footer {
         position: fixed;
         left: 0;
@@ -84,12 +81,25 @@ st.markdown("""
 def load_model():
     base_path = os.path.dirname(__file__)
     model_path = os.path.join(base_path, 'model.pkl')
+    features_path = os.path.join(base_path, 'features.pkl')
+
     if not os.path.exists(model_path):
         st.error("❌ Model file 'model.pkl' not found.")
         st.stop()
-    return joblib.load(model_path)
 
-model = load_model()
+    model = joblib.load(model_path)
+
+    # Load feature order if available
+    if os.path.exists(features_path):
+        features = joblib.load(features_path)
+    else:
+        features = ['Air temperature [K]', 'Process temperature [K]',
+                    'Rotational speed [rpm]', 'Torque [Nm]',
+                    'Tool wear [min]', 'Type_L', 'Type_M']
+
+    return model, features
+
+model, FEATURES = load_model()
 
 # -- Sidebar: Machine Settings --
 st.sidebar.header("⚙️ Machine Settings")
@@ -128,24 +138,28 @@ with col3:
 type_L = 1 if "L" in machine_type else 0
 type_M = 1 if "M" in machine_type else 0
 
-columns = ['Air temperature [K]', 'Process temperature [K]', 'Rotational speed [rpm]',
-           'Torque [Nm]', 'Tool wear [min]', 'Type_L', 'Type_M']
-
-input_df = pd.DataFrame([[air_temp, process_temp, rot_speed, torque, tool_wear, type_L, type_M]], columns=columns)
+input_df = pd.DataFrame([[air_temp, process_temp, rot_speed, torque, tool_wear, type_L, type_M]],
+                        columns=FEATURES)
 
 # -- Diagnostic Results --
 st.divider()
 
 if st.button("Run System Diagnostic", use_container_width=True):
-    # Using your specific weighted logic
+
     probs = model.predict_proba(input_df)[0]
-    risk_score = (0 * probs[0]) + (50 * probs[1]) + (100 * probs[2])
-    
-    st.subheader(f"📊 Diagnostic Analysis for: {machine_id}")
-    st.progress(int(risk_score))
-    
+
+    # SAFE risk calculation (handles any class order)
+    if len(probs) == 3:
+        risk_score = (0 * probs[0]) + (50 * probs[1]) + (100 * probs[2])
+    else:
+        # fallback if binary model
+        risk_score = probs[-1] * 100
+
+    st.subheader(f"📊 Diagnostic Analysis: {machine_id}")
+    st.progress(int(min(max(risk_score, 0), 100)))
+
     res_col1, res_col2 = st.columns(2)
-    
+
     with res_col1:
         if risk_score < 30:
             st.success(f"🟢 **LOW RISK** (Score: {risk_score:.1f})")
@@ -156,13 +170,15 @@ if st.button("Run System Diagnostic", use_container_width=True):
         else:
             st.error(f"🔴 **HIGH RISK** (Score: {risk_score:.1f})")
             st.write("Failure imminent! Maintenance required.")
-            
+
         st.write("**Confidence Breakdown:**")
-        st.info(f"Healthy: {probs[0]*100:.1f}% | Warning: {probs[1]*100:.1f}% | Failure: {probs[2]*100:.1f}%")
+        if len(probs) == 3:
+            st.info(f"Healthy: {probs[0]*100:.1f}% | Warning: {probs[1]*100:.1f}% | Failure: {probs[2]*100:.1f}%")
+        else:
+            st.info(f"Failure Probability: {probs[-1]*100:.1f}%")
 
     with res_col2:
         st.write("**Operational Context:**")
-        # Added back the visual dataframe you requested
         st.dataframe(input_df.style.background_gradient(cmap='Blues', axis=1))
         st.info("The Risk Score is calculated based on historical failure patterns and real-time sensor correlation.")
 
