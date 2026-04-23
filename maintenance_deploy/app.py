@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# -- Advanced UI Styling --
+# -- Advanced UI Styling (UNCHANGED) --
 st.markdown("""
     <style>
     [data-testid="stSidebarCollapseIcon"] svg, 
@@ -89,7 +89,7 @@ def load_model():
 
     model = joblib.load(model_path)
 
-    # Load feature order if available
+    # Load feature order safely
     if os.path.exists(features_path):
         features = joblib.load(features_path)
     else:
@@ -134,29 +134,53 @@ with col2:
 with col3:
     tool_wear = st.number_input("Tool Wear [min]", value=50.0, step=1.0)
 
-# -- Data Preparation --
-type_L = 1 if "L" in machine_type else 0
-type_M = 1 if "M" in machine_type else 0
+# -- FIXED Machine Type Encoding --
+if machine_type.startswith("L"):
+    type_L, type_M = 1, 0
+elif machine_type.startswith("M"):
+    type_L, type_M = 0, 1
+else:
+    type_L, type_M = 0, 0
 
-input_df = pd.DataFrame([[air_temp, process_temp, rot_speed, torque, tool_wear, type_L, type_M]],
-                        columns=FEATURES)
+# -- Data Preparation (STRICT FEATURE ORDER) --
+input_dict = {
+    'Air temperature [K]': air_temp,
+    'Process temperature [K]': process_temp,
+    'Rotational speed [rpm]': rot_speed,
+    'Torque [Nm]': torque,
+    'Tool wear [min]': tool_wear,
+    'Type_L': type_L,
+    'Type_M': type_M
+}
+
+# Ensure exact feature order used in training
+input_df = pd.DataFrame([input_dict])
+input_df = input_df.reindex(columns=FEATURES, fill_value=0)
 
 # -- Diagnostic Results --
 st.divider()
 
 if st.button("Run System Diagnostic", use_container_width=True):
 
-    probs = model.predict_proba(input_df)[0]
+    try:
+        probs = model.predict_proba(input_df)[0]
+    except Exception as e:
+        st.error(f"❌ Prediction error: {e}")
+        st.stop()
 
-    # SAFE risk calculation (handles any class order)
-    if len(probs) == 3:
-        risk_score = (0 * probs[0]) + (50 * probs[1]) + (100 * probs[2])
-    else:
-        # fallback if binary model
-        risk_score = probs[-1] * 100
+    # -- SAFE Risk Score Calculation --
+    try:
+        if len(probs) == 3:
+            risk_score = (0 * probs[0]) + (50 * probs[1]) + (100 * probs[2])
+        else:
+            risk_score = probs[-1] * 100
+    except:
+        risk_score = 0
+
+    risk_score = float(np.clip(risk_score, 0, 100))
 
     st.subheader(f"📊 Diagnostic Analysis: {machine_id}")
-    st.progress(int(min(max(risk_score, 0), 100)))
+    st.progress(int(risk_score))
 
     res_col1, res_col2 = st.columns(2)
 
@@ -173,7 +197,11 @@ if st.button("Run System Diagnostic", use_container_width=True):
 
         st.write("**Confidence Breakdown:**")
         if len(probs) == 3:
-            st.info(f"Healthy: {probs[0]*100:.1f}% | Warning: {probs[1]*100:.1f}% | Failure: {probs[2]*100:.1f}%")
+            st.info(
+                f"Healthy: {probs[0]*100:.1f}% | "
+                f"Warning: {probs[1]*100:.1f}% | "
+                f"Failure: {probs[2]*100:.1f}%"
+            )
         else:
             st.info(f"Failure Probability: {probs[-1]*100:.1f}%")
 
@@ -182,5 +210,5 @@ if st.button("Run System Diagnostic", use_container_width=True):
         st.dataframe(input_df.style.background_gradient(cmap='Blues', axis=1))
         st.info("The Risk Score is calculated based on historical failure patterns and real-time sensor correlation.")
 
-# -- Footer --
+# -- Footer (UNCHANGED) --
 st.markdown(f'<div class="footer">Samith S P © 2026 | Predictive Maintenance System v1.0</div>', unsafe_allow_html=True)
